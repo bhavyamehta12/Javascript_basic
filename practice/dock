@@ -1,0 +1,1483 @@
+<!-- <!-- Yes. Here is a **complete recap of the Promise + Callback interview questions you did today**, including the questions, your answers, correct answers, and the key concepts you needed to learn.
+
+# JavaScript Callbacks + Promises — Today's Interview Revision
+
+## Question 1 — Callback + Event Loop + Promise
+
+### Code
+
+```js
+console.log("A");
+
+setTimeout(() => {
+    console.log("B");
+}, 0);
+
+Promise.resolve()
+    .then(() => {
+        console.log("C");
+
+        setTimeout(() => {
+            console.log("D");
+        }, 0);
+    })
+    .then(() => {
+        console.log("E");
+    });
+
+function processData(callback) {
+    console.log("F");
+
+    setTimeout(() => {
+        console.log("G");
+        callback();
+    }, 0);
+}
+
+processData(() => {
+    console.log("H");
+
+    Promise.resolve().then(() => {
+        console.log("I");
+    });
+});
+
+console.log("J");
+```
+
+### Your answer
+
+```text
+A F H J C E B D G
+```
+
+### Correct answer
+
+```text
+A
+F
+J
+C
+E
+B
+G
+H
+I
+D
+```
+
+### Score
+
+**7/10**
+
+### What you needed to understand
+
+Synchronous code executes first:
+
+```text
+A
+F
+J
+```
+
+Then Promise microtasks:
+
+```text
+C
+E
+```
+
+Then timers/tasks:
+
+```text
+B
+G
+```
+
+When `G`'s timer executes, its callback executes:
+
+```text
+G
+H
+```
+
+Inside `H`, another Promise is created:
+
+```js
+Promise.resolve().then(...)
+```
+
+That creates a microtask:
+
+```text
+I
+```
+
+So `I` executes before the next timer:
+
+```text
+D
+```
+
+### Important rule
+
+```text
+Synchronous JavaScript
+        ↓
+Microtasks
+(Promise.then/catch/finally)
+        ↓
+Task/macrotask
+(setTimeout)
+        ↓
+Microtasks again
+        ↓
+Next task
+```
+
+---
+
+# Question 2 — Promise Chaining + Error Propagation
+
+### Code
+
+```js
+console.log("1");
+
+Promise.resolve("A")
+    .then(value => {
+        console.log("2", value);
+
+        return Promise.resolve("B");
+    })
+    .then(value => {
+        console.log("3", value);
+
+        throw new Error("Something went wrong");
+    })
+    .then(value => {
+        console.log("4", value);
+    })
+    .catch(error => {
+        console.log("5", error.message);
+
+        return "C";
+    })
+    .then(value => {
+        console.log("6", value);
+
+        return Promise.reject("D");
+    })
+    .catch(error => {
+        console.log("7", error);
+    });
+
+console.log("8");
+```
+
+### Your answer
+
+```text
+1 8 B 2A 3A 7error
+```
+
+### Correct answer
+
+```text
+1
+8
+2 A
+3 B
+5 Something went wrong
+6 C
+7 D
+```
+
+### Score
+
+**3/10**
+
+This was the question where you had the biggest conceptual gap.
+
+---
+
+## Why `3` receives B
+
+First:
+
+```js
+.then(() => {
+    return Promise.resolve("B");
+})
+```
+
+When a `.then()` returns a Promise, the **next `.then()` waits for/adopts that Promise's state and value**.
+
+Therefore:
+
+```js
+.then(value => {
+    console.log("3", value);
+})
+```
+
+receives:
+
+```text
+B
+```
+
+not `A`.
+
+---
+
+## Why `4` doesn't execute
+
+This happens:
+
+```js
+throw new Error("Something went wrong");
+```
+
+Throwing inside a Promise handler causes the Promise returned by that handler to become **rejected**.
+
+Therefore the next `.then()` is skipped:
+
+```js
+.then(() => {
+    console.log("4");
+})
+```
+
+So:
+
+```text
+4
+```
+
+never appears.
+
+The rejection travels to:
+
+```js
+.catch(...)
+```
+
+---
+
+## Why `catch()` recovers the chain
+
+The catch does:
+
+```js
+return "C";
+```
+
+Returning a normal value from `catch()` makes the resulting Promise **fulfilled**.
+
+So the next `.then()` executes:
+
+```text
+6 C
+```
+
+Then:
+
+```js
+return Promise.reject("D");
+```
+
+rejects the chain again.
+
+Therefore the second `catch()` runs:
+
+```text
+7 D
+```
+
+---
+
+# Question 3 — Callback + Promise + Nested Async Operations
+
+### Code
+
+```js
+function getUser(callback) {
+    setTimeout(() => {
+        console.log("User API");
+
+        callback(null, {
+            id: 101,
+            name: "Bhavya"
+        });
+    }, 100);
+}
+
+function getOrders(userId, callback) {
+    setTimeout(() => {
+        console.log("Orders API");
+
+        callback(null, [
+            { id: 1, total: 500 },
+            { id: 2, total: 1000 }
+        ]);
+    }, 50);
+}
+
+function getTotal(orders) {
+    return new Promise((resolve, reject) => {
+        console.log("Calculating total");
+
+        if (!orders.length) {
+            reject(new Error("No orders"));
+            return;
+        }
+
+        resolve(
+            orders.reduce((sum, order) => sum + order.total, 0)
+        );
+    });
+}
+
+console.log("Start");
+
+getUser((error, user) => {
+    if (error) {
+        console.log("User error");
+        return;
+    }
+
+    console.log("Got user:", user.name);
+
+    getOrders(user.id, (error, orders) => {
+        if (error) {
+            console.log("Order error");
+            return;
+        }
+
+        console.log("Got orders");
+
+        getTotal(orders)
+            .then(total => {
+                console.log("Total:", total);
+            })
+            .catch(error => {
+                console.log("Total error:", error.message);
+            });
+    });
+});
+
+console.log("End");
+```
+
+### You initially answered
+
+```text
+Start order
+```
+
+Then asked for the complete answer.
+
+### Correct output
+
+```text
+Start
+End
+User API
+Got user: Bhavya
+Orders API
+Got orders
+Calculating total
+Total: 1500
+```
+
+---
+
+# The tricky part: Is `getTotal()` synchronous or asynchronous?
+
+This was the main interview trap.
+
+### `getTotal()` itself starts synchronously.
+
+Inside:
+
+```js
+new Promise((resolve, reject) => {
+    console.log("Calculating total");
+});
+```
+
+the Promise executor runs **synchronously**.
+
+Therefore:
+
+```text
+Calculating total
+```
+
+prints immediately when `getTotal()` is called.
+
+But the `.then()` handler:
+
+```js
+.then(total => {
+    console.log("Total:", total);
+})
+```
+
+runs asynchronously as a **microtask**.
+
+So you should distinguish:
+
+```text
+Promise executor → synchronous
+.then() callback → microtask/asynchronous
+```
+
+### Production interview answer
+
+> The Promise constructor executor executes synchronously, but Promise reaction handlers such as `.then()` and `.catch()` are scheduled as microtasks.
+
+That's a strong interview answer.
+
+---
+
+# Question 4 — Promise Constructor + Timer + Microtask
+
+### Code
+
+```js
+console.log("A");
+
+const promise = new Promise((resolve, reject) => {
+    console.log("B");
+
+    setTimeout(() => {
+        console.log("C");
+        resolve("D");
+    }, 0);
+});
+
+promise.then(value => {
+    console.log("E", value);
+});
+
+setTimeout(() => {
+    console.log("F");
+
+    Promise.resolve().then(() => {
+        console.log("G");
+    });
+}, 0);
+
+console.log("H");
+```
+
+### Your answer
+
+```text
+A
+B
+H
+C
+E
+D
+F
+G
+```
+
+### Score
+
+**8.5/10**
+
+This was your strongest answer.
+
+### Correct output
+
+```text
+A
+B
+H
+C
+E D
+F
+G
+```
+
+The only mistake was treating:
+
+```js
+resolve("D");
+```
+
+as if it printed `D`.
+
+It doesn't.
+
+---
+
+# Critical distinction: `resolve("D")`
+
+This:
+
+```js
+resolve("D");
+```
+
+means:
+
+> Fulfill the Promise with the value `"D"`.
+
+It does **not** mean:
+
+```js
+console.log("D");
+```
+
+Instead, `"D"` becomes the value received by:
+
+```js
+.then(value => {
+    console.log("E", value);
+});
+```
+
+So:
+
+```text
+E D
+```
+
+is printed.
+
+---
+
+# The complete execution model
+
+You should now visualize this:
+
+```text
+console.log("A")
+       ↓
+A
+
+new Promise(...)
+       ↓
+executor runs immediately
+       ↓
+B
+
+setTimeout(...)
+       ↓
+wait
+
+console.log("H")
+       ↓
+H
+
+timer executes
+       ↓
+C
+       ↓
+resolve("D")
+       ↓
+Promise fulfilled
+       ↓
+.then() scheduled as microtask
+       ↓
+E D
+
+next timer
+       ↓
+F
+       ↓
+Promise.resolve().then(...)
+       ↓
+microtask
+       ↓
+G
+```
+
+---
+
+# ⭐ Concepts you learned today
+
+## 1. Callback
+
+A callback is a function passed to another function to be executed later or at a specific point.
+
+```js
+function processData(callback) {
+    callback();
+}
+```
+
+Not every callback is asynchronous.
+
+For example:
+
+```js
+[1, 2, 3].forEach(num => {
+    console.log(num);
+});
+```
+
+The callback is synchronous.
+
+---
+
+# 2. Callback + `setTimeout`
+
+```js
+setTimeout(() => {
+    console.log("Hello");
+}, 0);
+```
+
+Even with `0`, it doesn't execute immediately.
+
+It is scheduled as a task.
+
+---
+
+# 3. Promise
+
+A Promise represents the eventual result of an asynchronous operation.
+
+It can be:
+
+```text
+Pending
+   ↓
+Fulfilled
+```
+
+or:
+
+```text
+Pending
+   ↓
+Rejected
+```
+
+---
+
+# 4. `resolve()`
+
+```js
+resolve(value);
+```
+
+fulfills the Promise with `value`.
+
+It doesn't print anything.
+
+---
+
+# 5. `reject()`
+
+```js
+reject(error);
+```
+
+rejects the Promise.
+
+---
+
+# 6. `.then()`
+
+```js
+promise.then(value => {});
+```
+
+Runs when the Promise fulfills.
+
+Its callback is executed through the **microtask queue**.
+
+---
+
+# 7. `.catch()`
+
+```js
+promise.catch(error => {});
+```
+
+Handles rejection.
+
+---
+
+# 8. Throwing inside `.then()`
+
+```js
+.then(() => {
+    throw new Error("Failed");
+})
+```
+
+causes the Promise returned by that `.then()` to become rejected.
+
+---
+
+# 9. Returning a value
+
+```js
+.then(() => {
+    return "A";
+})
+.then(value => {
+    console.log(value);
+});
+```
+
+Output:
+
+```text
+A
+```
+
+---
+
+# 10. Returning a Promise
+
+```js
+.then(() => {
+    return Promise.resolve("A");
+})
+.then(value => {
+    console.log(value);
+});
+```
+
+The next `.then()` receives:
+
+```text
+A
+```
+
+The chain adopts the returned Promise's state.
+
+---
+
+# 11. Returning from `catch()`
+
+```js
+.catch(() => {
+    return "Recovered";
+})
+.then(value => {
+    console.log(value);
+});
+```
+
+The chain has recovered:
+
+```text
+Recovered
+```
+
+---
+
+# 12. Promise constructor executor is synchronous
+
+This:
+
+```js
+new Promise(() => {
+    console.log("A");
+});
+```
+
+prints `A` immediately.
+
+But:
+
+```js
+Promise.resolve().then(() => {
+    console.log("B");
+});
+```
+
+runs `B` as a microtask.
+
+---
+
+# 13. Microtask priority
+
+Important simplified model:
+
+```text
+Synchronous code
+       ↓
+Microtask queue
+       ↓
+Task queue
+       ↓
+Microtask queue
+       ↓
+Task queue
+```
+
+Promises use the microtask queue.
+
+`setTimeout` uses the task/macrotask queue.
+
+---
+
+# Your performance today
+
+| Area                       |      Score |
+| -------------------------- | ---------: |
+| Callback understanding     |       7/10 |
+| Event loop                 |       7/10 |
+| Promise basics             |       7/10 |
+| Promise chaining           |       5/10 |
+| Error propagation          |       5/10 |
+| Microtask understanding    |       7/10 |
+| Promise constructor        |     8.5/10 |
+| Production-level reasoning | **6.5/10** |
+
+### Biggest things to improve
+
+You are **not struggling with basic syntax**. Your main weakness is tracking the **Promise state and chain**.
+
+Especially remember:
+
+```text
+return value
+      ↓
+next .then gets value
+
+return Promise
+      ↓
+next .then adopts that Promise
+
+throw error
+      ↓
+chain becomes rejected
+
+catch returns value
+      ↓
+chain becomes fulfilled/recovered
+```
+
+And:
+
+```text
+Promise executor = synchronous
+Promise handlers = microtasks
+```
+
+That distinction is now one of the most important things for you to master before moving deeply into `async/await`. -->
+Yes. Here is your **September 10, 2026 JavaScript interview-practice revision sheet**, covering the questions and answers I can recover from today’s practice.
+
+# 1. Callbacks — Questions & Answers
+
+### Q1. What is a callback function?
+
+**Answer:**
+
+A callback is a function passed as an argument to another function so that the receiving function can execute it later.
+
+```js
+function greet(name, callback) {
+    console.log("Hello " + name);
+    callback();
+}
+
+greet("Bhavya", function () {
+    console.log("Welcome");
+});
+```
+
+Output:
+
+```text
+Hello Bhavya
+Welcome
+```
+
+---
+
+### Q2. Are all callbacks asynchronous?
+
+**Answer: No.**
+
+Callbacks can be **synchronous or asynchronous**.
+
+Synchronous:
+
+```js
+[1, 2, 3].forEach(num => {
+    console.log(num);
+});
+```
+
+Asynchronous:
+
+```js
+setTimeout(() => {
+    console.log("Done");
+}, 1000);
+```
+
+Your earlier answer here was correct: **not all callbacks are asynchronous.**
+
+---
+
+### Q3. Why can callback-based code become difficult to maintain?
+
+**Answer:**
+
+When many asynchronous operations depend on each other, callbacks can become deeply nested:
+
+```js
+getUser(id, function(user) {
+    getOrders(user, function(orders) {
+        getPayment(orders, function(payment) {
+            // ...
+        });
+    });
+});
+```
+
+This can lead to:
+
+* callback nesting
+* difficult error handling
+* poor readability
+* difficult maintenance
+
+This problem is commonly called **callback hell**.
+
+---
+
+### Q4. Closure with callback
+
+Question:
+
+```js
+function outer() {
+    let count = 0;
+
+    return function callback() {
+        count++;
+        console.log(count);
+    };
+}
+
+const fn = outer();
+
+fn();
+fn();
+fn();
+```
+
+**Answer:**
+
+```text
+1
+2
+3
+```
+
+Why?
+
+The returned function forms a **closure** over `count`.
+
+The same captured `count` is used on every call:
+
+```text
+0 → 1 → 2 → 3
+```
+
+Your answer was correct.
+
+---
+
+# 2. Asynchronous JavaScript
+
+### Q5. Which executes first: synchronous or asynchronous code?
+
+Example:
+
+```js
+console.log("A");
+
+setTimeout(() => {
+    console.log("B");
+}, 0);
+
+console.log("C");
+```
+
+Answer:
+
+```text
+A
+C
+B
+```
+
+Why?
+
+`setTimeout()` does not execute its callback immediately. The callback is scheduled and later processed through the event loop.
+
+So synchronous JavaScript finishes first.
+
+---
+
+# 3. Promises
+
+### Q6. What is a Promise?
+
+**Answer:**
+
+A Promise represents the eventual result of an asynchronous operation.
+
+It has three states:
+
+```text
+pending
+   ↓
+fulfilled
+```
+
+or
+
+```text
+pending
+   ↓
+rejected
+```
+
+A Promise can be:
+
+* pending
+* fulfilled
+* rejected
+
+---
+
+### Q7. Why were Promises introduced?
+
+**Answer:**
+
+Promises provide a cleaner way to handle asynchronous operations compared with deeply nested callbacks.
+
+They improve:
+
+* readability
+* chaining
+* error handling
+* asynchronous control flow
+
+---
+
+### Q8. Promise chaining
+
+The important concept:
+
+```js
+fetchUser()
+    .then(user => getOrders(user))
+    .then(orders => processOrders(orders))
+    .catch(error => console.log(error));
+```
+
+Each `.then()` can return another Promise, allowing the next `.then()` to wait for it.
+
+---
+
+### Q9. Promise output/order questions
+
+You practiced output-order questions involving synchronous code, Promise callbacks, and timers.
+
+The core rule you were learning was:
+
+```text
+Synchronous code
+      ↓
+Microtasks (Promise .then/.catch/.finally)
+      ↓
+Macrotasks/tasks such as setTimeout
+```
+
+So when predicting output, first execute the synchronous portion, then process queued Promise microtasks, then eligible timer/task callbacks.
+
+---
+
+# 4. `forEach()`
+
+### Q10. What does `forEach()` do?
+
+It executes a callback once for every element.
+
+```js
+const numbers = [1, 2, 3];
+
+numbers.forEach(num => {
+    console.log(num);
+});
+```
+
+Output:
+
+```text
+1
+2
+3
+```
+
+---
+
+### Q11. Does `forEach()` return a new array?
+
+**No.**
+
+```js
+const result = [1, 2, 3].forEach(num => num * 2);
+
+console.log(result);
+```
+
+Output:
+
+```text
+undefined
+```
+
+If you need a transformed array, use `map()`.
+
+---
+
+# 5. `find()`
+
+### Q12. What does `find()` return?
+
+The **first element** satisfying the condition.
+
+```js
+const numbers = [10, 20, 30, 40];
+
+const result = numbers.find(num => num > 25);
+
+console.log(result);
+```
+
+Output:
+
+```text
+30
+```
+
+If nothing matches:
+
+```text
+undefined
+```
+
+---
+
+### Q13. `find()` vs `filter()`
+
+```js
+find()
+```
+
+→ first matching element
+
+```js
+filter()
+```
+
+→ array containing all matching elements.
+
+Example:
+
+```js
+const numbers = [10, 20, 30, 40];
+```
+
+```js
+numbers.find(num => num > 15);
+```
+
+→
+
+```text
+20
+```
+
+```js
+numbers.filter(num => num > 15);
+```
+
+→
+
+```js
+[20, 30, 40]
+```
+
+---
+
+# 6. `some()`
+
+### Q14. What does `some()` do?
+
+Checks whether **at least one** element satisfies a condition.
+
+```js
+const numbers = [10, 20, 30];
+
+numbers.some(num => num > 25);
+```
+
+Result:
+
+```text
+true
+```
+
+Think:
+
+```text
+some() = OR
+```
+
+It stops when it finds the first matching element.
+
+---
+
+# 7. `every()`
+
+### Q15. What does `every()` do?
+
+Checks whether **all elements** satisfy a condition.
+
+```js
+const numbers = [10, 20, 30];
+
+numbers.every(num => num > 5);
+```
+
+Result:
+
+```text
+true
+```
+
+Think:
+
+```text
+every() = AND
+```
+
+It stops as soon as it finds a failure.
+
+---
+
+### Q16. `some()` vs `every()`
+
+```js
+const numbers = [10, 20, 30];
+```
+
+```js
+numbers.some(num => num > 25);
+```
+
+→ `true`
+
+because 30 matches.
+
+```js
+numbers.every(num => num > 25);
+```
+
+→ `false`
+
+because 10 and 20 don't match.
+
+---
+
+### Q17. Empty-array edge case
+
+```js
+[].some(x => true)
+```
+
+→
+
+```text
+false
+```
+
+But:
+
+```js
+[].every(x => false)
+```
+
+→
+
+```text
+true
+```
+
+This is an advanced edge case related to **vacuous truth**.
+
+---
+
+# 8. `sort()`
+
+### Q18. Why is this surprising?
+
+```js
+const numbers = [100, 5, 20, 2];
+
+numbers.sort();
+
+console.log(numbers);
+```
+
+Output:
+
+```js
+[100, 2, 20, 5]
+```
+
+Because default `sort()` performs **lexicographical/string-based comparison**, rather than numerical comparison.
+
+---
+
+### Q19. How do you sort numbers ascending?
+
+```js
+numbers.sort((a, b) => a - b);
+```
+
+Result:
+
+```text
+2, 5, 20, 100
+```
+
+---
+
+### Q20. How do you sort numbers descending?
+
+```js
+numbers.sort((a, b) => b - a);
+```
+
+Result:
+
+```text
+100, 20, 5, 2
+```
+
+---
+
+### Q21. Does `sort()` mutate the original array?
+
+**Yes.**
+
+```js
+const numbers = [3, 1, 2];
+
+const sorted = numbers.sort((a, b) => a - b);
+
+console.log(numbers);
+```
+
+The original `numbers` has also become:
+
+```js
+[1, 2, 3]
+```
+
+---
+
+### Q22. How do you sort without mutating the original?
+
+Use a copy:
+
+```js
+const sorted = [...numbers].sort((a, b) => a - b);
+```
+
+This is especially important when working with immutable data patterns such as React state.
+
+---
+
+# 9. Production Scenario
+
+Given:
+
+```js
+const products = [
+    { id: 1, name: "Laptop", price: 60000, stock: 10 },
+    { id: 2, name: "Mouse", price: 1000, stock: 0 },
+    { id: 3, name: "Phone", price: 30000, stock: 5 }
+];
+```
+
+### Find product with ID 2
+
+```js
+products.find(product => product.id === 2);
+```
+
+### Check if at least one is out of stock
+
+```js
+products.some(product => product.stock === 0);
+```
+
+### Check if every product is available
+
+```js
+products.every(product => product.stock > 0);
+```
+
+### Sort cheapest → expensive without mutation
+
+```js
+const sortedProducts = [...products].sort(
+    (a, b) => a.price - b.price
+);
+```
+
+---
+
+# Your biggest corrections from today's `find/some/every/sort` test
+
+| Topic              | Your answer                   | Correction                       |
+| ------------------ | ----------------------------- | -------------------------------- |
+| `find()`           | You said it returns 2nd + 3rd | ❌ Only 2nd                       |
+| `some()`           | Correct                       | ✅                                |
+| `every()`          | Correct                       | ✅                                |
+| Default `sort()`   | Correct                       | ✅                                |
+| Ascending sort     | Correct                       | ✅                                |
+| Descending sort    | Missing                       | `b - a`                          |
+| Non-mutating sort  | Used `.sort()` directly       | ❌ Use `[...arr].sort()`          |
+| Out-of-stock check | `stock < 0`                   | ❌ Usually `stock === 0` / `<= 0` |
+| `===`              | Used `==`                     | Prefer strict equality           |
+| Empty `some/every` | `false true`                  | Actually **false, true** ✅       |
+
+### The 4 rules you should memorize
+
+```text
+find()  → give me the FIRST matching element
+some()  → does AT LEAST ONE match?
+every() → do ALL match?
+sort()  → reorder the array, and MUTATES it
+```
+
+And the production rule:
+
+```js
+[...array].sort(...)
+```
+
+when you need to preserve the original array. -->
