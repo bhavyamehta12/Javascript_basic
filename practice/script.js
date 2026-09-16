@@ -108,7 +108,3 @@
 // Promise.all([p1,p2])
 //     .then((results) => {
 //         console.log(results)})
-async function test(){
-    return 10
-}
-console.log(test())
