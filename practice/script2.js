@@ -46,8 +46,13 @@
 //     thro w new Error("Something went wrong")
 // }
 // hello().catch((err)=>console.log(err))
-async function getData(){
-    const res = await fetch("https://jsonplaceholder.typicode.com/posts");
-    console.log(res)
-}
-getData()
+// async function getData(){
+//     const res = await fetch("https://jsonplaceholder.typicode.com/posts");
+//     console.log(res)
+// }
+// // getData()
+// const user = await createUser();
+
+// const account = await createBankAccount(user.id);
+
+// const email = await sendWelcomeEmail(user.email);
