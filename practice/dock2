@@ -1,0 +1,763 @@
+<!-- Yes. Here is a consolidated **Callback + Promise + Async/Await interview revision sheet** from what you practiced today, including your answers, corrections, and the key explanations.
+
+# JavaScript Async Interview — Today's Questions & Answers
+
+## 1. Event Loop: Callback + Promise + Async/Await
+
+### Question
+
+```js
+console.log("A");
+
+setTimeout(() => {
+    console.log("B");
+}, 0);
+
+Promise.resolve().then(() => {
+    console.log("C");
+
+    setTimeout(() => {
+        console.log("D");
+    }, 0);
+});
+
+async function test() {
+    console.log("E");
+
+    await Promise.resolve();
+
+    console.log("F");
+}
+
+test();
+
+console.log("G");
+```
+
+### Correct answer
+
+```text
+A
+E
+G
+C
+F
+B
+D
+```
+
+### Why?
+
+Synchronous code executes first:
+
+```text
+A
+E
+G
+```
+
+Then microtasks:
+
+```text
+C
+F
+```
+
+Then timers:
+
+```text
+B
+D
+```
+
+### Key rule
+
+```text
+Synchronous code
+       ↓
+Microtasks (.then, await continuation)
+       ↓
+Macrotasks (setTimeout)
+```
+
+---
+
+# 2. Promise Chaining
+
+### Question
+
+```js
+Promise.resolve(10)
+    .then(value => {
+        console.log(value);
+        return value * 2;
+    })
+    .then(value => {
+        console.log(value);
+
+        throw new Error("Something went wrong");
+    })
+    .then(value => {
+        console.log("Success:", value);
+    })
+    .catch(error => {
+        console.log("Caught:", error.message);
+        return 100;
+    })
+    .then(value => {
+        console.log("Final:", value);
+    });
+```
+
+### Correct output
+
+```text
+10
+20
+Caught: Something went wrong
+Final: 100
+```
+
+### Flow
+
+```text
+10
+ ↓
+return 20
+ ↓
+20
+ ↓
+throw error
+ ↓
+skip next .then()
+ ↓
+catch()
+ ↓
+return 100
+ ↓
+next .then()
+ ↓
+Final: 100
+```
+
+### Important
+
+When `.then()` throws:
+
+```js
+throw new Error("Something went wrong");
+```
+
+the Promise returned by that `.then()` becomes rejected.
+
+`catch()` handles it.
+
+Then:
+
+```js
+return 100;
+```
+
+creates a fulfilled Promise, so the next `.then()` executes.
+
+---
+
+# 3. Promise.all()
+
+### Question
+
+```js
+const p1 = new Promise(resolve => {
+    setTimeout(() => resolve("A"), 3000);
+});
+
+const p2 = new Promise(resolve => {
+    setTimeout(() => resolve("B"), 1000);
+});
+
+const p3 = new Promise(resolve => {
+    setTimeout(() => resolve("C"), 2000);
+});
+
+async function run() {
+    const result = await Promise.all([p1, p2, p3]);
+
+    console.log(result);
+}
+
+run();
+```
+
+### Correct answer
+
+```js
+["A", "B", "C"]
+```
+
+after approximately:
+
+```text
+3 seconds
+```
+
+### Completion order
+
+```text
+B → C → A
+```
+
+But result:
+
+```text
+A → B → C
+```
+
+### Why?
+
+`Promise.all()` preserves **input order**, not completion order.
+
+### Important
+
+The promises execute concurrently.
+
+They do NOT execute:
+
+```text
+p1 → wait → p2 → wait → p3
+```
+
+They effectively start together.
+
+---
+
+# 4. Promise.all() Failure
+
+### Question
+
+```js
+const getUser = () =>
+    new Promise(resolve =>
+        setTimeout(() => resolve("User"), 1000)
+    );
+
+const getOrders = () =>
+    new Promise((resolve, reject) =>
+        setTimeout(() => reject("Orders API failed"), 2000)
+    );
+
+const getProducts = () =>
+    new Promise(resolve =>
+        setTimeout(() => resolve("Products"), 3000)
+    );
+
+async function dashboard() {
+    try {
+        const result = await Promise.all([
+            getUser(),
+            getOrders(),
+            getProducts()
+        ]);
+
+        console.log(result);
+    } catch (error) {
+        console.log("ERROR:", error);
+    }
+}
+
+dashboard();
+```
+
+### Correct output
+
+Approximately after 2 seconds:
+
+```text
+ERROR: Orders API failed
+```
+
+### Important question
+
+Does `getProducts()` stop?
+
+### Answer
+
+**No.**
+
+It continues running.
+
+Timeline:
+
+```text
+0 sec → all three start
+
+1 sec → User succeeds
+
+2 sec → Orders rejects
+        ↓
+        Promise.all rejects
+        ↓
+        catch executes
+
+3 sec → Products succeeds
+```
+
+But its result isn't returned through `Promise.all()` because `Promise.all()` has already rejected.
+
+### Interview rule
+
+> `Promise.all()` rejects as soon as one input Promise rejects, but it does not automatically cancel the other already-running operations.
+
+---
+
+# 5. Promise.allSettled()
+
+### Question
+
+```js
+const requests = [
+    Promise.resolve("User"),
+    Promise.reject("Orders failed"),
+    Promise.resolve("Products"),
+    Promise.reject("Payments failed")
+];
+
+Promise.allSettled(requests).then(result => {
+    console.log(result);
+});
+```
+
+### Correct output structure
+
+```js
+[
+    {
+        status: "fulfilled",
+        value: "User"
+    },
+    {
+        status: "rejected",
+        reason: "Orders failed"
+    },
+    {
+        status: "fulfilled",
+        value: "Products"
+    },
+    {
+        status: "rejected",
+        reason: "Payments failed"
+    }
+]
+```
+
+### Why use `allSettled()`?
+
+Suppose a dashboard has:
+
+```text
+User       ✅
+Orders     ❌
+Products   ✅
+Payments   ❌
+```
+
+You still want the successful data.
+
+`Promise.all()` would reject the whole operation.
+
+`Promise.allSettled()` tells you the result of **every Promise**.
+
+---
+
+# 6. Promise.race()
+
+### Question 1
+
+```js
+const fastSuccess = new Promise(resolve => {
+    setTimeout(() => resolve("SUCCESS"), 1000);
+});
+
+const slowFailure = new Promise((resolve, reject) => {
+    setTimeout(() => reject("FAILED"), 3000);
+});
+
+Promise.race([fastSuccess, slowFailure])
+    .then(result => console.log("THEN:", result))
+    .catch(error => console.log("CATCH:", error));
+```
+
+### Answer
+
+After 1 second:
+
+```text
+THEN: SUCCESS
+```
+
+---
+
+### Question 2
+
+```js
+const fastFailure = new Promise((resolve, reject) => {
+    setTimeout(() => reject("FAILED"), 1000);
+});
+
+const slowSuccess = new Promise(resolve => {
+    setTimeout(() => resolve("SUCCESS"), 3000);
+});
+
+Promise.race([fastFailure, slowSuccess])
+    .then(result => console.log("THEN:", result))
+    .catch(error => console.log("CATCH:", error));
+```
+
+### Answer
+
+After 1 second:
+
+```text
+CATCH: FAILED
+```
+
+### Critical interview concept
+
+`Promise.race()` does **NOT** mean:
+
+> First successful Promise wins.
+
+It means:
+
+> **First settled Promise wins.**
+
+Settled means:
+
+```text
+fulfilled OR rejected
+```
+
+---
+
+# 7. Async/Await
+
+### Question
+
+```js
+async function test() {
+    console.log("1");
+
+    await Promise.resolve();
+
+    console.log("2");
+
+    await Promise.resolve();
+
+    console.log("3");
+}
+
+console.log("A");
+
+test();
+
+console.log("B");
+```
+
+### Correct output
+
+```text
+A
+1
+B
+2
+3
+```
+
+### Why?
+
+`async` does not make the entire function execute asynchronously.
+
+This executes immediately:
+
+```js
+console.log("1");
+```
+
+Then:
+
+```js
+await Promise.resolve();
+```
+
+pauses **the async function**.
+
+It does not pause the entire JavaScript program.
+
+So:
+
+```text
+A
+1
+↓
+await
+↓
+B
+↓
+microtask
+↓
+2
+↓
+await
+↓
+microtask
+↓
+3
+```
+
+### Important rule
+
+> `await` pauses the async function, not JavaScript execution globally.
+
+---
+
+# 8. Promise Methods — Your Question Today
+
+You asked:
+
+> "Promise all methods return array?"
+
+### Correct answer
+
+Not all Promise methods return arrays.
+
+| Method                 | Returns         |
+| ---------------------- | --------------- |
+| `Promise.all()`        | ✅ Array         |
+| `Promise.allSettled()` | ✅ Array         |
+| `Promise.race()`       | ❌ Single result |
+| `Promise.any()`        | ❌ Single result |
+
+### Easy memory trick
+
+```text
+ALL        → ARRAY
+ALLSETTLED → ARRAY
+RACE       → ONE
+ANY        → ONE
+```
+
+---
+
+# 9. Promise.all() Result Order
+
+### Question
+
+If:
+
+```js
+Promise.all([
+    promiseA,
+    promiseB,
+    promiseC
+]);
+```
+
+and completion happens:
+
+```text
+B → C → A
+```
+
+Does the result become:
+
+```js
+["B", "C", "A"]
+```
+
+### Answer
+
+❌ No.
+
+It becomes:
+
+```js
+["A", "B", "C"]
+```
+
+because `Promise.all()` preserves **input order**.
+
+---
+
+# 10. Promise.all vs allSettled vs race vs any
+
+This is one of the most important interview tables.
+
+| Method         | Waits for       | Rejects?                           | Returns              |
+| -------------- | --------------- | ---------------------------------- | -------------------- |
+| `all()`        | All             | If any rejects                     | Array                |
+| `allSettled()` | All             | ❌ Never because of input rejection | Array                |
+| `race()`       | First settled   | If first settled rejects           | Single result/reason |
+| `any()`        | First fulfilled | Only if **all** reject             | Single value         |
+
+### Example
+
+```text
+Promise.all()
+A ✅ B ✅ C ✅
+→ [A, B, C]
+
+Promise.allSettled()
+A ✅ B ❌ C ✅
+→ [{...}, {...}, {...}]
+
+Promise.race()
+A finishes first
+→ A
+
+Promise.any()
+A ❌ B ❌ C ✅
+→ C
+```
+
+---
+
+# 11. Your Main Mistakes Today
+
+### Mistake 1
+
+You initially put:
+
+```text
+A → C → E → G...
+```
+
+But `E` is synchronous.
+
+Correct:
+
+```text
+A → E → G → C → F → B → D
+```
+
+---
+
+### Mistake 2
+
+You thought `Promise.all()` gives completion order.
+
+It doesn't.
+
+```text
+Completion: B → C → A
+Result:     A → B → C
+```
+
+---
+
+### Mistake 3
+
+You thought the other Promise stops when `Promise.all()` rejects.
+
+It doesn't automatically cancel it.
+
+---
+
+### Mistake 4
+
+You understood async/await output but your explanation of `async` was incomplete.
+
+Remember:
+
+```text
+async → function returns Promise
+
+await → pauses async function and resumes later
+```
+
+---
+
+# 🧠 Final Cheat Sheet
+
+Memorize this:
+
+```text
+CALLBACK
+↓
+Function passed to another function
+
+PROMISE
+↓
+pending → fulfilled/rejected
+
+.then()
+↓
+handles fulfillment
+
+.catch()
+↓
+handles rejection
+
+.finally()
+↓
+runs regardless of success/failure
+
+async
+↓
+always returns a Promise
+
+await
+↓
+pauses only the async function
+
+Promise.all()
+↓
+all must fulfill
+↓
+array
+↓
+input order
+↓
+fast rejection
+
+Promise.allSettled()
+↓
+wait for everyone
+↓
+array
+↓
+success + failure information
+
+Promise.race()
+↓
+first settled wins
+↓
+one result
+
+Promise.any()
+↓
+first fulfilled wins
+↓
+one result
+↓
+rejects only if ALL reject
+
+EVENT LOOP
+↓
+Synchronous
+↓
+Microtasks
+↓
+Tasks/timers
+```
+
+### Your current level from today's practice
+
+**Callbacks:** 8/10
+**Promise chaining:** 8/10
+**Promise methods:** 7.5/10
+**Promise concurrency:** 7/10
+**Async/await:** 7/10
+**Event loop:** 6.5/10
+
+**Overall: ~7.2/10.**
+
+The next biggest gap to close is **`async/await` + `Promise.all()` concurrency + event-loop microtasks**, because those are the areas where production-level interviewers can quickly distinguish basic knowledge from strong JavaScript knowledge. -->
