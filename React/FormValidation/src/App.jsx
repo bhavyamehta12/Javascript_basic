@@ -25,7 +25,6 @@ const App = () => {
       [name]: type === "checkbox" ? checked : value,
     });
 
-    // Remove error when user starts correcting the field
     setErrors({
       ...errors,
       [name]: "",
@@ -66,7 +65,6 @@ const App = () => {
       newErrors.password = "Password must contain at least one number";
     }
 
-    // Confirm password
     if (form.conpassword === "") {
       newErrors.conpassword = "Please confirm your password";
     } else if (form.conpassword !== form.password) {
