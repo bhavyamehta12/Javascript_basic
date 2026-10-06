@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Personal from "./Components/Personal";
 import Account from "./Components/Account";
+import Address from "./Components/Address.jsx";
 
 const App = () => {
   const [form, setForm] = useState({

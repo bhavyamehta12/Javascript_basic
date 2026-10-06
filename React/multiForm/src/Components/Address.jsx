@@ -40,7 +40,7 @@ const Address = ({form,setForm,setCurrentStep}) => {
             <input type='text' name="city" value={form.city} onChange={handleChange}/>
             <br/>
             <label>Pincode</label>
-            <input type='number' name='pincode' value={form.pincode} onChange={handleChange}/>
+            <input type='text' name='pincode' value={form.pincode} onChange={handleChange}/>
             <div>
                 <button type='button' onClick={()=>setCurrentStep(1)}>Back</button>
                 <button type='button' onClick={()=>setCurrentStep(3)}>Next</button>
