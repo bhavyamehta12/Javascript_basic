@@ -1,24 +1,20 @@
-import React from 'react'
-import images from './images.jpg'
-import '../App.css'
+import React from 'react';
 
-const ProductCard = () => {
+export default function ProductCard({ img,title,description,rating,price }) {
   return (
-    <div className='product-card'>
-        <img src={images} />  
-        <h2>Wireless Headphones</h2>
-        <div className="rating">
-            <span className="stars">★★★★☆</span>
-            <span className="rating-number">4.0 (120 reviews)</span>
+    <div className="product-card">
+      <div>
+        <div className="product-image-box">
+          <span><img src={img} alt={title}/></span>
         </div>
-
-        <p>High-quality sound.</p>
-
-        <h3>₹2,499</h3>
-
-        <button>Add to Cart</button>
+        <div className="product-title">{title}</div>
+        <div className="product-desc">{description}</div>
+        <div className="product-rating">{rating}</div>
+      </div>
+      <div className="product-footer">
+        <span className="product-price">{price}</span>
+        <button className="add-to-cart-btn">Add to Cart</button>
+      </div>
     </div>
-  )
+  );
 }
-
-export default ProductCard

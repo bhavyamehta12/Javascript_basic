@@ -1,12 +1,11 @@
-import React from 'react'
-import ProductCard from './ProductCard'
+import React from 'react';
+import Filter from './Filter';
+import ProductList from './ProductList';
 
-const Body = () => {
+export default function BodyComponent({products,search}) {
   return (
-    <div>
-      <ProductCard/>
-    </div>
-  )
+    <div id="body-container">
+      <Filter />
+      <ProductList products={products} search={search}/>    </div>
+  );
 }
-
-export default Body

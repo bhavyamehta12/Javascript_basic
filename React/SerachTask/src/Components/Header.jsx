@@ -1,15 +1,11 @@
-import '../App.css'
-import Search from './Search'
+import React from 'react';
+import Search from './Search';
 
-const Header = ({search,setSearch}) => {
+export default function HeaderComponent() {
   return (
-    <>
-    <div className='header-div'>
-      <h1 className='logo'>Logo</h1>
-      <Search search={search} setSearch={setSearch}/>
-    </div>
-    </>
-  )
+    <header id="header-container">
+      <div id="logo">LOGO</div>
+      <Search/>
+    </header>
+  );
 }
-
-export default Header
