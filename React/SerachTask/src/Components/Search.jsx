@@ -1,8 +1,11 @@
-import React from 'react';
+import { useRef, useEffect } from "react";
 
 export default function Search({ search, setSearch }) {
-  console.log("search:", search);
-  console.log("setSearch:", setSearch);
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    searchInputRef.current.focus();
+  }, []);
 
   return (
     <div id="search-container">
@@ -10,14 +13,12 @@ export default function Search({ search, setSearch }) {
         <span className="search-icon">🔍</span>
 
         <input
+          ref={searchInputRef}
           type="text"
           id="search-input"
           placeholder="Search for products..."
           value={search}
-          onChange={(e) => {
-            console.log("setSearch type:", typeof setSearch);
-            setSearch(e.target.value);
-          }}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
     </div>

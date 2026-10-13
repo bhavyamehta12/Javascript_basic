@@ -5,7 +5,7 @@ export default function ProductCard({ img,title,description,rating,price }) {
     <div className="product-card">
       <div>
         <div className="product-image-box">
-          <span><img src={img} alt={title}/></span>
+          <img src={img} alt={title}/>
         </div>
         <div className="product-title">{title}</div>
         <div className="product-desc">{description}</div>
