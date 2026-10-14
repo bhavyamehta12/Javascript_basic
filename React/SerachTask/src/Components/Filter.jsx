@@ -8,7 +8,7 @@ export default function Filter({
   brand,
   setBrand,
   ratings,
-  setRatings
+  setRatings,
 }) {
   return (
     <div id="filters-container">
@@ -199,7 +199,9 @@ export default function Filter({
               if (e.target.checked) {
                 setBrand((prev) => [...prev, 'Calvin Klein']);
               } else {
-                setBrand((prev) => prev.filter((item) => item !== 'Calvin Klein'));
+                setBrand((prev) =>
+                  prev.filter((item) => item !== 'Calvin Klein')
+                );
               }
             }}
           />{' '}
@@ -242,19 +244,43 @@ export default function Filter({
           Customer Rating <span>&#9650;</span>
         </div>
         <label className="filter-option">
-          <input type="radio"  name="rating" value="4" checked={ratings =="4"} onChange={(e)=>setRatings(Number(e.target.value))}/>
+          <input
+            type="radio"
+            name="rating"
+            value="4"
+            checked={ratings == '4'}
+            onChange={(e) => setRatings(Number(e.target.value))}
+          />
           4 Stars & above
         </label>
         <label className="filter-option">
-          <input type="radio"  name="rating" value="3" checked={ratings =="3"} onChange={(e)=>setRatings(Number(e.target.value))}/>
+          <input
+            type="radio"
+            name="rating"
+            value="3"
+            checked={ratings == '3'}
+            onChange={(e) => setRatings(Number(e.target.value))}
+          />
           3 Stars & above
         </label>
         <label className="filter-option">
-          <input type="radio"  name="rating" value="2" checked={ratings =="2"} onChange={(e)=>setRatings(Number(e.target.value))}/>
+          <input
+            type="radio"
+            name="rating"
+            value="2"
+            checked={ratings == '2'}
+            onChange={(e) => setRatings(Number(e.target.value))}
+          />
           2 Stars & above
         </label>
         <label className="filter-option">
-          <input type="radio"  name="rating" value="1" checked={ratings =="1"} onChange={(e)=>setRatings(Number(e.target.value))}/>
+          <input
+            type="radio"
+            name="rating"
+            value="1"
+            checked={ratings == '1'}
+            onChange={(e) => setRatings(Number(e.target.value))}
+          />
           Show All
         </label>
       </div>

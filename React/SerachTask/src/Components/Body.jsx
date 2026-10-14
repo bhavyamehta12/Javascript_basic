@@ -13,7 +13,9 @@ export default function Body({
   brand,
   setBrand,
   ratings,
-  setRatings
+  setRatings,
+  price,
+  setPrice
 }) {
   return (
     <div id="body-container">
@@ -28,6 +30,7 @@ export default function Body({
         brand={brand}
         setBrand={setBrand}
         ratings={ratings}
+        F
         setRatings={setRatings}
       />
       <ProductList
@@ -38,6 +41,8 @@ export default function Body({
         maxprice={maxprice}
         brand={brand}
         ratings={ratings}
+        price={price}
+        setPrice={setPrice}
       />
     </div>
   );
